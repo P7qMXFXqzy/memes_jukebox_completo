@@ -1,53 +1,54 @@
-from os import listdir
-from random import randrange, choice
+from PyQt5.QtWidgets import QMainWindow, QLabel
 from PyQt5.QtGui import QPixmap
+from PyQt5.QtCore import Qt
+from pyautogui import size as screen_size
+from random import randrange, choice
+from os import listdir
 
-class ImagesViewer:
+class ImagesViewerWindow(QMainWindow):
 
-    def __init__(self, main_window, use_images, max_resolution_x, max_resolution_y, pixmap_obj, label_obj, random_pos, repetition_allowed, hide_img):
-        #pass parameters to variables
-        self.main_window_obj = main_window
-        self.use_images = use_images
-        self.max_resolution_x = max_resolution_x
-        self.max_resolution_y = max_resolution_y
-        self.current_location_x = 0
-        self.current_location_y = 0
-        self.pixmap_obj = pixmap_obj
-        self.label_obj = label_obj
-        self.random_pos = random_pos
+    def __init__(self, repetition_allowed, qnt_queries):
+        super().__init__()
+        self.setAttribute(Qt.WA_TranslucentBackground, True)
+        self.setAttribute(Qt.WA_ShowWithoutActivating, True)
+        self.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        self.setWindowFlag(Qt.FramelessWindowHint, True)
+        self.setWindowFlag(Qt.WindowStaysOnTopHint, True)
         self.keep_played_in_array = repetition_allowed
-        self.hide_img = hide_img
-        self.chosen_image = ""
-        self.show_current_image = ""
-        #load files
+        self.queries_qnt = qnt_queries
+        self.queried = []
         self.loaded_images = []
-        self.load_all_images()
-
-    def load_all_images(self):
-        self.loaded_images = listdir(".\\images\\")
+        self.max_resolutions = [0, 0]
+        self.max_resolutions[0],  self.max_resolutions[1] = screen_size()
+        self.resize(200,200)
+        self.background_pixmap = QPixmap("")
+        self.image_label = QLabel(self)
+        self.image_label.setScaledContents(True)
+        self.image_label.resize(200,200)
+        self.show()
+        
+    def prepare_query(self):
+        if (len(self.loaded_images) == 0): self.loaded_images = listdir(".\\images\\")
+        if (len(self.queried) == 0):
+            for x in range(0, self.queries_qnt):
+                chosen_file = choice(self.loaded_images)
+                self.queried.append(chosen_file)
+                #remove from all files array if set to not repeat
+                if (self.keep_played_in_array == False):
+                    file_index = self.loaded_images.index(chosen_file)
+                    self.loaded_images.pop(file_index)
+                    if (len(self.loaded_images) == 0): break
 
     def show_image(self):
-        #first define if images will be used
-        if (self.use_images == 0): self.show_current_image = False
-        elif (self.use_images == 1): self.show_current_image = True
-        else: self.show_current_image = choice([False, True])
-        #if yes, pick a random image, random location (if needed) and show the image.
-        if (self.show_current_image == True):
-            self.chosen_image = (choice(self.loaded_images))
-            self.pixmap_obj.swap(QPixmap(".\\images\\" + self.chosen_image))
-            self.label_obj.setPixmap(self.pixmap_obj)
-            self.label_obj.repaint()
-            if (self.random_pos == True): 
-                self.current_location_x = randrange(0, self.max_resolution_x)
-                self.current_location_y = randrange(0, self.max_resolution_y)
-            if (self.hide_img == True): self.main_window_obj.move(self.current_location_x, self.current_location_y)
+        self.background_pixmap = QPixmap(".\\images\\" + self.queried[0])
+        #move pixmap to label
+        self.image_label.setPixmap(self.background_pixmap)
+        self.image_label.repaint()
+        #show window with image to a random location
+        self.move((randrange(0, self.max_resolutions[0])), (randrange(0, self.max_resolutions[1])))
 
-    def remove_played_file_from_array(self):
-        file_index = self.loaded_images.index(self.chosen_image)
-        self.loaded_images.pop(file_index)
-        if (len(self.loaded_images) <= 0): self.load_all_images()
-        
-    def hide_after_audio(self):
-        if (self.hide_img == True and self.show_current_image == True): self.main_window_obj.move(self.max_resolution_x + 100, 0)
-        if (self.keep_played_in_array == False and self.show_current_image): self.remove_played_file_from_array()
-        
+    def hide_window(self):
+        self.move((self.max_resolutions[0] + 100), 0)
+
+    def remove_played_query(self):
+        self.queried.pop(0)
